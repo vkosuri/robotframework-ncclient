@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
-from distutils.core import setup
-
+from setuptools import setup, find_packages
 from os.path import abspath, dirname, join
 
 version_file = join(dirname(abspath(__file__)), 'src', 'NcclientLibrary', 'version.py')
@@ -11,7 +10,7 @@ with open(version_file) as file:
     exec(code)
 
 DESCRIPTION = """
-Robot Framework keyword library wrapper NETCONF requests.
+Robot Framework keyword library wrapper NETCONF client.
 """[1:-1]
 
 
@@ -30,15 +29,15 @@ setup(
     long_description = DESCRIPTION,
     author       = 'Mallikarjunarao Kosuri',
     author_email = 'venkatamallikarjunarao.kosuri@adtran.com',
-    url          = 'http://github.com/vkosuri/robotframework-ncclient',
+    url          = 'https://github.com/vkosuri/robotframework-ncclient',
     license      = 'Public Domain',
-    keywords     = 'robotframework testing test automation NETCONF client requests',
+    keywords     = 'robotframework test automation NETCONF client',
     platforms    = 'any',
     classifiers  = CLASSIFIERS.splitlines(),
     package_dir  = {'' : 'src'},
     packages     = ['NcclientLibrary'],
     package_data = {'NcclientLibrary': ['tests/*.robot']},
-    requires=[
+    install_requires=[
       'robotframework',
       'ncclient'
     ],
