@@ -1,22 +1,8 @@
 #!/usr/bin/env python
 
 from ncclient import manager
-from robot.libraries.BuiltIn import BuiltIn
-import collections
-
-
-def _convert_keys_to_string(data):
-    """ Convert unicode dict values into strings
-    because robotframwork uses unicode values
-    """
-    if isinstance(data, basestring):
-        return str(data)
-    elif isinstance(data, collections.Mapping):
-        return dict(map(_convert_keys_to_string, data.iteritems()))
-    elif isinstance(data, collections.Iterable):
-        return type(data)(map(_convert_keys_to_string, data))
-    else:
-        return data
+from robot.api import logger
+import re
 
 
 class NcclientException(Exception):
@@ -24,9 +10,9 @@ class NcclientException(Exception):
 
 
 class NcclientKeywords(object):
-    def __init__(self):
-        self.builtin = BuiltIn()
-        self.m = None
+    def __init__(self):        
+        # manager object
+        self.mgr = None
         # Specify whether operations are executed asynchronously (True) or 
         # synchronously (False) (the default).
         self.async_mode = None
@@ -35,9 +21,9 @@ class NcclientKeywords(object):
         # Specify which errors are raised as RPCError exceptions. Valid values are 
         # the constants defined in RaiseMode. The default value is ALL.
         self.raise_mode = None       
-        # Capabilities object representing the client?s capabilities.
+        # Capabilities object representing the client's capabilities.
         self.client_capabilities = None
-        # Capabilities object representing the server?s capabilities.
+        # Capabilities object representing the server's capabilities.
         self.server_capabilities = None
         # session-id assigned by the NETCONF server.
         self.session_id = None
@@ -49,20 +35,49 @@ class NcclientKeywords(object):
         Initialize a Manager over the SSH transport.
         """        
         try:
-            self.builtin.log('Creating session %s, %s' % (args, kwds))            
-            self.m = manager.connect(args, _convert_keys_to_string(kwds))
-            # self.async_mode = self.m.async_mode
-            # self.timeout = self.m.timeout
-            # self.raise_mode = self.m.raise_mode                  
-            # self.client_capabilities = self.m.client_capabilities
-            # self.server_capabilities = self.m.server_capabilities
-            # self.session_id = self.m.session_id
-            # self.connected = self.m.connected
+            logger.info('Creating session %s, %s' % (args, kwds))                        
+            self.mgr = manager.connect(
+                host=kwds.get('host'),
+                port=int(kwds.get('port') or 830),
+                username=str(kwds.get('username')),
+                password=str(kwds.get('password')),
+                hostkey_verify=False,
+                key_filename=str(kwds.get('key_filename')),
+            )
+            self.server_capabilities = self.mgr.server_capabilities
+            self.client_capabilities = self.mgr.client_capabilities
+            self.session_id = self.mgr.session_id
+            self.connected = self.mgr.connected
+            self.timeout = self.mgr.timeout
+            return (list(self.server_capabilities), list(self.client_capabilities), 
+                    self.session_id, self.connected, self.timeout)
         except NcclientException as e:
-            self.builtin.log(str(e))
-            print str(e)
+            logger.error(str(e))            
             raise str(e)    
-
+    
+    def parse_server_capabilities(self, server_capabilities):
+        """
+        Returns server_capabilities in JSON format
+        """
+        module_list = []
+        try:
+            for sc in server_capabilities:
+                match = re.findall(r'(\S+)\?module=(\S+)&revision=(\d{4}-\d{2}-\d{2})&?(features=(\S+))?', sc)
+                if match:                    
+                    namespace, name, revision, _, features = match[0]                    
+                    if features:
+                        module_list.append(
+                            {"name": name, "revision": revision, "namespace": namespace, "features": features.split(",")})
+                    else:
+                        module_list.append({"name":name, "revision":revision, "namespace": namespace})
+            
+            module_dict = {"module" : module_list}
+            return module_dict
+        except NcclientException as e:
+            logger.error(list(server_capabilities))
+            logger.error(str(e))
+            raise str(e)
+        
     def get_config(self, source, filter=None):
         """
         Retrieve all or part of a specified configuration.
@@ -73,11 +88,10 @@ class NcclientKeywords(object):
         (by default entire configuration is retrieved)
         """        
         try:
-            self.builtin.log("source: %s, filter: %s:" % (source, filter))
-            self.m.get_config(source, filter)
-        except NcclientException as e:
-            print str(e)
-            self.builtin.log(str(e))
+            logger.info("source: %s, filter: %s:" % (source, filter))
+            self.mgr.get_config(source, filter)
+        except NcclientException as e:            
+            logger.error(str(e))
             raise str(e)
 
     def edit_config(self, target, config, default_operation=None, test_option=None, error_option=None):
@@ -100,12 +114,11 @@ class NcclientKeywords(object):
 
         """        
         try:
-            self.builtin.log("target: %s, config: %s, default_operation: %s \
+            logger.info("target: %s, config: %s, default_operation: %s \
                test_option: %s,  error_option: %s" % (target, config, default_operation, test_option, error_option))
-            self.m.edit_config(target, config, default_operation, test_option, error_option)
+            self.mgr.edit_config(target, config, default_operation, test_option, error_option)
         except NcclientException as e:
-            self.builtin.log(str(e))
-            print str(e)
+            logger.error(str(e))            
             raise str(e)
     
     def copy_config(self, source, target):
@@ -120,11 +133,10 @@ class NcclientKeywords(object):
         destination of the copy operation
         """        
         try:
-            self.builtin.log("source: %s, target: %s" % (source, target))
-            self.m.copy_config(source, target)
+            logger.info("source: %s, target: %s" % (source, target))
+            self.mgr.copy_config(source, target)
         except NcclientException as e:
-            self.builtin.log(str(e))
-            print str(e)
+            logger.error(str(e))            
             raise str(e)
         
     def delete_config(self, target):
@@ -134,11 +146,10 @@ class NcclientKeywords(object):
         ``target`` specifies the name or URL of configuration datastore to delete
         """        
         try:
-            self.builtin.log("target: %s" % target)
-            self.m.delete_config(target)
+            logger.info("target: %s" % target)
+            self.mgr.delete_config(target)
         except NcclientException as e:
-            self.builtin.log(str(e))
-            print str(e)
+            logger.error(str(e))            
             raise str(e)
         
     def dispatch(self, rpc_command, source=None, filter=None):
@@ -152,11 +163,10 @@ class NcclientKeywords(object):
         (by default entire configuration is retrieved)
         """        
         try:
-            self.builtin.log("rpc_command: %s, source: %s, filter: %s" % (rpc_command, source, filter))
-            self.m.dispatch(rpc_command, source, filter)
+            logger.info("rpc_command: %s, source: %s, filter: %s" % (rpc_command, source, filter))
+            self.mgr.dispatch(rpc_command, source, filter)
         except NcclientException as e:
-            self.builtin.log(str(e))
-            print str(e)
+            logger.error(str(e))            
             raise str(e)
         
     def lock(self, target):
@@ -166,11 +176,10 @@ class NcclientKeywords(object):
         ``target`` is the name of the configuration datastore to lock
         """
         try:
-            self.builtin.log("target: %s" % target)
-            self.m.lock(target)
+            logger.info("target: %s" % target)
+            self.mgr.lock(target)
         except NcclientException as e:
-            self.builtin.log(str(e))
-            print str(e)
+            logger.error(str(e))            
             raise str(e)
 
     def unlock(self, target):
@@ -180,11 +189,10 @@ class NcclientKeywords(object):
         ``target`` is the name of the configuration datastore to unlock
         """
         try:
-            self.builtin.log("target: %s" % target)
-            self.m.unlock(target)
+            logger.info("target: %s" % target)
+            self.mgr.unlock(target)
         except NcclientException as e:
-            self.builtin.log(str(e))
-            print str(e)
+            logger.error(str(e))            
             raise str(e)
         
     def locked(self, target):
@@ -193,11 +201,10 @@ class NcclientKeywords(object):
         is the name of the configuration datastore to lock.
         """
         try:
-            self.builtin.log("target: %s" % target)
-            self.m.locked(target)
+            logger.info("target: %s" % target)
+            self.mgr.locked(target)
         except NcclientException as e:
-            self.builtin.log(str(e))
-            print str(e)
+            logger.error(str(e))            
             raise str(e)
     
     def get(self):
@@ -207,10 +214,9 @@ class NcclientKeywords(object):
         filter specifies the portion of the configuration to retrieve (by default entire configuration is retrieved)
         """
         try:
-            self.m.get()
+            self.mgr.get()
         except NcclientException as e:
-            self.builtin.log(str(e))
-            print str(e)
+            logger.error(str(e))            
             raise str(e)
 
     def close_session(self):
@@ -218,10 +224,9 @@ class NcclientKeywords(object):
         Request graceful termination of the NETCONF session, and also close the transport.
         """
         try:
-            self.m.close_session()
+            self.mgr.close_session()
         except NcclientException as e:
-            self.builtin.log(str(e))
-            print str(e)
+            logger.error(str(e))            
             raise str(e)
 
     def kill_session(self, session_id):
@@ -231,11 +236,10 @@ class NcclientKeywords(object):
         ``session_id`` is the session identifier of the NETCONF session to be terminated as a string
         """
         try:
-            self.builtin.log("session_id: %s" % session_id)
-            self.m.kill_session(session_id)
+            logger.info("session_id: %s" % session_id)
+            self.mgr.kill_session(session_id)
         except NcclientException as e:
-            self.builtin.log(str(e))
-            print str(e)
+            logger.error(str(e))            
             raise str(e)
     
     def commit(self, confirmed=False, timeout=None):
@@ -253,11 +257,10 @@ class NcclientKeywords(object):
         ``timeout`` specifies the confirm timeout in seconds
         """
         try:
-            self.builtin.log("confirmed: %s, timeout:%s" % (confirmed, timeout))
-            self.m.commit(confirmed, timeout)
+            logger.info("confirmed: %s, timeout:%s" % (confirmed, timeout))
+            self.mgr.commit(confirmed, timeout)
         except NcclientException as e:
-            self.builtin.log(str(e))
-            print str(e)
+            logger.error(str(e))            
             raise str(e)
     
     def discard_changes(self):
@@ -266,10 +269,9 @@ class NcclientKeywords(object):
         Any uncommitted changes are discarded.
         """
         try:
-            self.m.discard_changes()
+            self.mgr.discard_changes()
         except NcclientException as e:
-            self.builtin.log(str(e))
-            print str(e)
+            logger.error(str(e))            
             raise str(e)
 
     def validate(self, source):
@@ -280,9 +282,14 @@ class NcclientKeywords(object):
         element containing the configuration subtree to be validated
         """
         try:
-            self.builtin.log("source: %s" % source)
-            self.m.validate(source)
+            logger.info("source: %s" % source)
+            self.mgr.validate(source)
         except NcclientException as e:
-            self.builtin.log(str(e))
-            print str(e)
+            logger.error(str(e))            
             raise str(e)
+    
+    def __del__(self):
+        """
+        Request graceful termination of the NETCONF session, and also close the transport.
+        """
+        self.mgr.close_session()
