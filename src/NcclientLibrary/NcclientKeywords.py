@@ -10,7 +10,7 @@ class NcclientException(Exception):
 
 
 class NcclientKeywords(object):
-    def __init__(self):        
+    def __init__(self):
         # manager object
         self.mgr = None
         # Specify whether operations are executed asynchronously (True) or 
@@ -20,7 +20,7 @@ class NcclientKeywords(object):
         self.timeout = None
         # Specify which errors are raised as RPCError exceptions. Valid values are 
         # the constants defined in RaiseMode. The default value is ALL.
-        self.raise_mode = None       
+        self.raise_mode = None
         # Capabilities object representing the client's capabilities.
         self.client_capabilities = None
         # Capabilities object representing the server's capabilities.
@@ -33,9 +33,9 @@ class NcclientKeywords(object):
     def connect(self, *args, **kwds):
         """
         Initialize a Manager over the SSH transport.
-        """        
+        """
         try:
-            logger.info('Creating session %s, %s' % (args, kwds))                        
+            logger.info('Creating session %s, %s' % (args, kwds))
             self.mgr = manager.connect(
                 host=kwds.get('host'),
                 port=int(kwds.get('port') or 830),
@@ -49,12 +49,12 @@ class NcclientKeywords(object):
             self.session_id = self.mgr.session_id
             self.connected = self.mgr.connected
             self.timeout = self.mgr.timeout
-            return (list(self.server_capabilities), list(self.client_capabilities), 
+            return (list(self.server_capabilities), list(self.client_capabilities),
                     self.session_id, self.connected, self.timeout)
         except NcclientException as e:
-            logger.error(str(e))            
-            raise str(e)    
-    
+            logger.error(str(e))
+            raise str(e)
+
     def parse_server_capabilities(self, server_capabilities):
         """
         Returns server_capabilities in JSON format
@@ -63,34 +63,34 @@ class NcclientKeywords(object):
         try:
             for sc in server_capabilities:
                 match = re.findall(r'(\S+)\?module=(\S+)&revision=(\d{4}-\d{2}-\d{2})&?(features=(\S+))?', sc)
-                if match:                    
-                    namespace, name, revision, _, features = match[0]                    
+                if match:
+                    namespace, name, revision, _, features = match[0]
                     if features:
                         module_list.append(
                             {"name": name, "revision": revision, "namespace": namespace, "features": features.split(",")})
                     else:
                         module_list.append({"name":name, "revision":revision, "namespace": namespace})
-            
+
             module_dict = {"module" : module_list}
             return module_dict
         except NcclientException as e:
             logger.error(list(server_capabilities))
             logger.error(str(e))
             raise str(e)
-        
+
     def get_config(self, source, filter=None):
         """
         Retrieve all or part of a specified configuration.
 
         ``source`` name of the configuration datastore being queried
 
-        ``filter`` specifies the portion of the configuration to retrieve 
+        ``filter`` specifies the portion of the configuration to retrieve
         (by default entire configuration is retrieved)
-        """        
+        """
         try:
             logger.info("source: %s, filter: %s:" % (source, filter))
             self.mgr.get_config(source, filter)
-        except NcclientException as e:            
+        except NcclientException as e:
             logger.error(str(e))
             raise str(e)
 
@@ -100,75 +100,75 @@ class NcclientKeywords(object):
 
         ``target`` is the name of the configuration datastore being edited
 
-        ``config`` is the configuration, which must be rooted in the config element. 
+        ``config`` is the configuration, which must be rooted in the config element.
         It can be specified either as a string or an Element.
 
         ``default_operation`` if specified must be one of { ?merge?, ?replace?, or ?none? }
 
         ``test_option`` if specified must be one of { ?test_then_set?, ?set? }
 
-        ``error_option`` if specified must be one of 
+        ``error_option`` if specified must be one of
         { ?stop-on-error?, ?continue-on-error?, ?rollback-on-error? }
 
         The ?rollback-on-error? error_option depends on the :rollback-on-error capability.
 
-        """        
+        """
         try:
             logger.info("target: %s, config: %s, default_operation: %s \
                test_option: %s,  error_option: %s" % (target, config, default_operation, test_option, error_option))
             self.mgr.edit_config(target, config, default_operation, test_option, error_option)
         except NcclientException as e:
-            logger.error(str(e))            
+            logger.error(str(e))
             raise str(e)
-    
+
     def copy_config(self, source, target):
         """
-        Create or replace an entire configuration datastore with the contents 
+        Create or replace an entire configuration datastore with the contents
         of another complete configuration datastore.
 
-        ``source`` is the name of the configuration datastore to use as the 
+        ``source`` is the name of the configuration datastore to use as the
         source of the copy operation or config element containing the configuration subtree to copy
 
-        ``target`` is the name of the configuration datastore to use as the 
+        ``target`` is the name of the configuration datastore to use as the
         destination of the copy operation
-        """        
+        """
         try:
             logger.info("source: %s, target: %s" % (source, target))
             self.mgr.copy_config(source, target)
         except NcclientException as e:
-            logger.error(str(e))            
+            logger.error(str(e))
             raise str(e)
-        
+
     def delete_config(self, target):
         """
         Delete a configuration datastore.
 
         ``target`` specifies the name or URL of configuration datastore to delete
-        """        
+        """
         try:
             logger.info("target: %s" % target)
             self.mgr.delete_config(target)
         except NcclientException as e:
-            logger.error(str(e))            
+            logger.error(str(e))
             raise str(e)
-        
+
     def dispatch(self, rpc_command, source=None, filter=None):
         """
-        ``rpc_command`` specifies rpc command to be dispatched either in plain 
+        ``rpc_command`` specifies rpc command to be dispatched either in plain
         text or in xml element format (depending on command)
 
         ``source`` name of the configuration datastore being queried
 
-        ``filter`` specifies the portion of the configuration to retrieve 
+        ``filter`` specifies the portion of the configuration to retrieve
         (by default entire configuration is retrieved)
-        """        
+        """
         try:
             logger.info("rpc_command: %s, source: %s, filter: %s" % (rpc_command, source, filter))
             self.mgr.dispatch(rpc_command, source, filter)
         except NcclientException as e:
-            logger.error(str(e))            
+            logger.error(str(e))
             raise str(e)
-        
+
     def lock(self, target):
         """
         Allows the client to lock the configuration system of a device.
@@ -179,7 +179,7 @@ class NcclientKeywords(object):
             logger.info("target: %s" % target)
             self.mgr.lock(target)
         except NcclientException as e:
-            logger.error(str(e))            
+            logger.error(str(e))
             raise str(e)
 
     def unlock(self, target):
@@ -192,21 +192,21 @@ class NcclientKeywords(object):
             logger.info("target: %s" % target)
             self.mgr.unlock(target)
         except NcclientException as e:
-            logger.error(str(e))            
+            logger.error(str(e))
             raise str(e)
-        
+
     def locked(self, target):
         """
-        Returns a context manager for a lock on a datastore, where target 
+        Returns a context manager for a lock on a datastore, where target
         is the name of the configuration datastore to lock.
         """
         try:
             logger.info("target: %s" % target)
             self.mgr.locked(target)
         except NcclientException as e:
-            logger.error(str(e))            
+            logger.error(str(e))
             raise str(e)
-    
+
     def get(self):
         """
         Retrieve running configuration and device state information.
@@ -216,7 +216,7 @@ class NcclientKeywords(object):
         try:
             self.mgr.get()
         except NcclientException as e:
-            logger.error(str(e))            
+            logger.error(str(e))
             raise str(e)
 
     def close_session(self):
@@ -226,7 +226,7 @@ class NcclientKeywords(object):
         try:
             self.mgr.close_session()
         except NcclientException as e:
-            logger.error(str(e))            
+            logger.error(str(e))
             raise str(e)
 
     def kill_session(self, session_id):
@@ -239,9 +239,9 @@ class NcclientKeywords(object):
             logger.info("session_id: %s" % session_id)
             self.mgr.kill_session(session_id)
         except NcclientException as e:
-            logger.error(str(e))            
+            logger.error(str(e))
             raise str(e)
-    
+
     def commit(self, confirmed=False, timeout=None):
         """
         Commit the candidate configuration as the device?s new current configuration.
@@ -260,9 +260,9 @@ class NcclientKeywords(object):
             logger.info("confirmed: %s, timeout:%s" % (confirmed, timeout))
             self.mgr.commit(confirmed, timeout)
         except NcclientException as e:
-            logger.error(str(e))            
+            logger.error(str(e))
             raise str(e)
-    
+
     def discard_changes(self):
         """
         Revert the candidate configuration to the currently running configuration.
@@ -271,7 +271,7 @@ class NcclientKeywords(object):
         try:
             self.mgr.discard_changes()
         except NcclientException as e:
-            logger.error(str(e))            
+            logger.error(str(e))
             raise str(e)
 
     def validate(self, source):
@@ -285,11 +285,16 @@ class NcclientKeywords(object):
             logger.info("source: %s" % source)
             self.mgr.validate(source)
         except NcclientException as e:
-            logger.error(str(e))            
+            logger.error(str(e))
             raise str(e)
-    
-    def __del__(self):
+
+    def close_session(self):
         """
         Request graceful termination of the NETCONF session, and also close the transport.
         """
-        self.mgr.close_session()
+        try:
+            self.mgr.close_session()
+        except NcclientException as e:
+            logger.error(str(e))
+            raise str(e)
+
