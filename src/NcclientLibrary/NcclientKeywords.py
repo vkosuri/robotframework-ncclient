@@ -1,9 +1,34 @@
-#!/usr/bin/env python
+#!/usr/bin/env pythoni
 
 from ncclient import manager
 from robot.api import logger
 import re
 
+_standard_capabilities = {
+    # The server supports the <candidate/> database
+    "candidate" : False,
+    # :candidate capability support
+    "confirmed-commit" : False,
+    # The server will accepts <rpc> requests"
+    "interleave" :  False,
+    # basic notification delivery support
+    "notification": False,
+    # supports the <partial-lock> and <partial-unlock>
+    "partial-lock" : False,
+    # 'roolback-on-error' value for the <error-option> and <edit-config>
+    # operations
+    "roolback-on-error" : False,
+    # <startup/> database support
+    "starup" : False,
+    # Indicates file, https and stftp server capabilities
+    "url" : False,
+    # <validate> operation
+    "validate" : False,
+    # allow the client to change the running configuration directly
+    "writable-running" : False,
+    # The server fully supports the XPATH 1.0 sepcification for fliter data
+    "xpath" : False
+}
 
 class NcclientException(Exception):
     pass
@@ -24,7 +49,9 @@ class NcclientKeywords(object):
         # Capabilities object representing the client's capabilities.
         self.client_capabilities = None
         # Capabilities object representing the server's capabilities.
-        self.server_capabilities = None
+        self.server_capabilities = _standard_capabilities
+        # YANG modules supported by server
+        self.yang_modules = None
         # session-id assigned by the NETCONF server.
         self.session_id = None
         # Whether currently connected to the NETCONF server.
@@ -44,35 +71,48 @@ class NcclientKeywords(object):
                 hostkey_verify=False,
                 key_filename=str(kwds.get('key_filename')),
             )
-            self.server_capabilities = self.mgr.server_capabilities
+            all_server_capabilities = self.mgr.server_capabilities
             self.client_capabilities = self.mgr.client_capabilities
             self.session_id = self.mgr.session_id
             self.connected = self.mgr.connected
             self.timeout = self.mgr.timeout
-            return (list(self.server_capabilities), list(self.client_capabilities),
-                    self.session_id, self.connected, self.timeout)
+            # Store YANG Modules and Capabilities
+            self.yang_modules, server_capabilities = self._parse_server_capabilities(all_server_capabilities)
+            # print self.server_capabilities
+            # print server_capabilities
+            # Parse server capabilities
+            for sc in server_capabilities:
+                self.server_capabilities[sc] = True
+
+            return True
         except NcclientException as e:
             logger.error(str(e))
             raise str(e)
 
-    def parse_server_capabilities(self, server_capabilities):
+    def _parse_server_capabilities(self, server_capabilities):
         """
-        Returns server_capabilities in JSON format
+        Returns server_capabilities and supported YANG modules in JSON format
         """
         module_list = []
+        server_caps = []
         try:
             for sc in server_capabilities:
-                match = re.findall(r'(\S+)\?module=(\S+)&revision=(\d{4}-\d{2}-\d{2})&?(features=(\S+))?', sc)
-                if match:
-                    namespace, name, revision, _, features = match[0]
+                # urn:ietf:params:netconf:capability:{name}:1.x
+                server_caps_match = re.match(r'urn:ietf:params:netconf:capability:(\S+):\d+.\d+', sc)
+                if server_caps_match:
+                    server_caps.append(server_caps_match.group(1))
+                # http://www.adtran.com/ns/yang/adtran-physical-modules?module=adtran-physical-modules&revision=2016-04-25&features=module
+                modules_match = re.findall(r'(\S+)\?module=(\S+)&revision=(\d{4}-\d{2}-\d{2})&?(features=(\S+))?', sc)
+                if modules_match:
+                    namespace, name, revision, _, features = modules_match[0]
                     if features:
                         module_list.append(
                             {"name": name, "revision": revision, "namespace": namespace, "features": features.split(",")})
                     else:
                         module_list.append({"name":name, "revision":revision, "namespace": namespace})
 
-            module_dict = {"module" : module_list}
-            return module_dict
+            module_dict = {"module-info": module_list}
+            return module_dict, server_caps
         except NcclientException as e:
             logger.error(list(server_capabilities))
             logger.error(str(e))
