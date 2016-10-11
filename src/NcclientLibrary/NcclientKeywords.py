@@ -1,4 +1,4 @@
-#!/usr/bin/env pythoni
+#!/usr/bin/env python
 
 from ncclient import manager
 from robot.api import logger
@@ -43,8 +43,8 @@ class NcclientKeywords(object):
         self.async_mode = None
         # Specify the timeout for synchronous RPC requests.
         self.timeout = None
-        # Specify which errors are raised as RPCError exceptions. Valid values are 
-        # the constants defined in RaiseMode. The default value is ALL.
+        # Specify which errors are raised as RPCError exceptions. Valid values
+        # are the constants defined in RaiseMode. The default value is ALL.
         self.raise_mode = None
         # Capabilities object representing the client's capabilities.
         self.client_capabilities = None
@@ -77,13 +77,15 @@ class NcclientKeywords(object):
             self.connected = self.mgr.connected
             self.timeout = self.mgr.timeout
             # Store YANG Modules and Capabilities
-            self.yang_modules, server_capabilities = self._parse_server_capabilities(all_server_capabilities)
-            # print self.server_capabilities
-            # print server_capabilities
+            self.yang_modules, server_capabilities = \
+                    self._parse_server_capabilities(all_server_capabilities)
             # Parse server capabilities
             for sc in server_capabilities:
                 self.server_capabilities[sc] = True
 
+            logger.debug("%s, %s, %s, %s" %(self.server_capabilities, 
+                        self.yang_modules, self.client_capabilities,
+                        self.timeout))
             return True
         except NcclientException as e:
             logger.error(str(e))
@@ -98,18 +100,26 @@ class NcclientKeywords(object):
         try:
             for sc in server_capabilities:
                 # urn:ietf:params:netconf:capability:{name}:1.x
-                server_caps_match = re.match(r'urn:ietf:params:netconf:capability:(\S+):\d+.\d+', sc)
+                server_caps_match = re.match(
+                        r'urn:ietf:params:netconf:capability:(\S+):\d+.\d+',
+                        sc)
                 if server_caps_match:
                     server_caps.append(server_caps_match.group(1))
-                # http://www.adtran.com/ns/yang/adtran-physical-modules?module=adtran-physical-modules&revision=2016-04-25&features=module
-                modules_match = re.findall(r'(\S+)\?module=(\S+)&revision=(\d{4}-\d{2}-\d{2})&?(features=(\S+))?', sc)
+                modules_match = re.findall(
+                    r'(\S+)\?module=(\S+)&revision=' +
+                    '(\d{4}-\d{2}-\d{2})&?(features=(\S+))?',
+                    sc)
                 if modules_match:
                     namespace, name, revision, _, features = modules_match[0]
                     if features:
                         module_list.append(
-                            {"name": name, "revision": revision, "namespace": namespace, "features": features.split(",")})
+                            {"name": name, "revision": revision,
+                            "namespace": namespace,
+                            "features": features.split(",")})
                     else:
-                        module_list.append({"name":name, "revision":revision, "namespace": namespace})
+                        module_list.append({"name":name,
+                                            "revision":revision,
+                                            "namespace": namespace})
 
             module_dict = {"module-info": module_list}
             return module_dict, server_caps
@@ -134,29 +144,35 @@ class NcclientKeywords(object):
             logger.error(str(e))
             raise str(e)
 
-    def edit_config(self, target, config, default_operation=None, test_option=None, error_option=None):
+    def edit_config(self, target, config, default_operation=None,
+                                    test_option=None, error_option=None):
         """
-        Loads all or part of the specified config to the target configuration datastore.
+        Loads all or part of the specified config to the target
+         configuration datastore.
 
         ``target`` is the name of the configuration datastore being edited
 
-        ``config`` is the configuration, which must be rooted in the config element.
-        It can be specified either as a string or an Element.
+        ``config`` is the configuration, which must be rooted in the config
+        element.  It can be specified either as a string or an Element.
 
-        ``default_operation`` if specified must be one of { ?merge?, ?replace?, or ?none? }
+        ``default_operation`` if specified must be one of 
+        { ?merge?, ?replace?, or ?none? }
 
         ``test_option`` if specified must be one of { ?test_then_set?, ?set? }
 
         ``error_option`` if specified must be one of
         { ?stop-on-error?, ?continue-on-error?, ?rollback-on-error? }
 
-        The ?rollback-on-error? error_option depends on the :rollback-on-error capability.
+        The ?rollback-on-error? error_option depends on the :rollback-on-error
+        adaptability.
 
         """
         try:
             logger.info("target: %s, config: %s, default_operation: %s \
-               test_option: %s,  error_option: %s" % (target, config, default_operation, test_option, error_option))
-            self.mgr.edit_config(target, config, default_operation, test_option, error_option)
+               test_option: %s,  error_option: %s" 
+               % (target, config, default_operation, test_option, error_option))
+            self.mgr.edit_config(target, config, default_operation, 
+                                    test_option, error_option)
         except NcclientException as e:
             logger.error(str(e))
             raise str(e)
@@ -167,7 +183,8 @@ class NcclientKeywords(object):
         of another complete configuration datastore.
 
         ``source`` is the name of the configuration datastore to use as the
-        source of the copy operation or config element containing the configuration subtree to copy
+        source of the copy operation or config element containing the
+        configuration subtree to copy
 
         ``target`` is the name of the configuration datastore to use as the
         destination of the copy operation
@@ -183,7 +200,8 @@ class NcclientKeywords(object):
         """
         Delete a configuration datastore.
 
-        ``target`` specifies the name or URL of configuration datastore to delete
+        ``target`` specifies the name or URL of configuration datastore to
+        delete.
         """
         try:
             logger.info("target: %s" % target)
@@ -203,7 +221,8 @@ class NcclientKeywords(object):
         (by default entire configuration is retrieved)
         """
         try:
-            logger.info("rpc_command: %s, source: %s, filter: %s" % (rpc_command, source, filter))
+            logger.info("rpc_command: %s, source: %s, filter: %s" 
+                                    % (rpc_command, source, filter))
             self.mgr.dispatch(rpc_command, source, filter)
         except NcclientException as e:
             logger.error(str(e))
@@ -224,7 +243,8 @@ class NcclientKeywords(object):
 
     def unlock(self, target):
         """
-        Release a configuration lock, previously obtained with the lock operation.
+        Release a configuration lock, previously obtained with the lock
+        operation.
 
         ``target`` is the name of the configuration datastore to unlock
         """
@@ -251,7 +271,8 @@ class NcclientKeywords(object):
         """
         Retrieve running configuration and device state information.
 
-        filter specifies the portion of the configuration to retrieve (by default entire configuration is retrieved)
+        filter specifies the portion of the configuration to retrieve (by
+        default entire configuration is retrieved)
         """
         try:
             self.mgr.get()
@@ -261,7 +282,8 @@ class NcclientKeywords(object):
 
     def close_session(self):
         """
-        Request graceful termination of the NETCONF session, and also close the transport.
+        Request graceful termination of the NETCONF session, and also close the
+        transport.
         """
         try:
             self.mgr.close_session()
@@ -273,7 +295,8 @@ class NcclientKeywords(object):
         """
         Force the termination of a NETCONF session (not the current one!)
 
-        ``session_id`` is the session identifier of the NETCONF session to be terminated as a string
+        ``session_id`` is the session identifier of the NETCONF session to be
+        terminated as a string
         """
         try:
             logger.info("session_id: %s" % session_id)
@@ -284,13 +307,14 @@ class NcclientKeywords(object):
 
     def commit(self, confirmed=False, timeout=None):
         """
-        Commit the candidate configuration as the device?s new current configuration.
-        Depends on the :candidate capability.
+        Commit the candidate configuration as the device?s new current
+        configuration. Depends on the :candidate capability.
 
-        A confirmed commit (i.e. if confirmed is True) is reverted if there is no
-        followup commit within the timeout interval. If no timeout is specified the confirm
-        timeout defaults to 600 seconds (10 minutes). A confirming commit may have the
-        confirmed parameter but this is not required. Depends on the :confirmed-commit capability.
+        A confirmed commit (i.e. if confirmed is True) is reverted if there is
+        no followup commit within the timeout interval. If no timeout is
+        specified the confirm timeout defaults to 600 seconds (10 minutes). A
+        confirming commit may have the confirmed parameter but this is not
+        required. Depends on the :confirmed-commit capability.
 
         ``confirmed`` whether this is a confirmed commit
 
@@ -305,8 +329,8 @@ class NcclientKeywords(object):
 
     def discard_changes(self):
         """
-        Revert the candidate configuration to the currently running configuration.
-        Any uncommitted changes are discarded.
+        Revert the candidate configuration to the currently running
+        configuration. Any uncommitted changes are discarded.
         """
         try:
             self.mgr.discard_changes()
@@ -318,8 +342,8 @@ class NcclientKeywords(object):
         """
         Validate the contents of the specified configuration.
 
-        ``source`` is the name of the configuration datastore being validated or config
-        element containing the configuration subtree to be validated
+        ``source`` is the name of the configuration datastore being validated or
+        config element containing the configuration subtree to be validated
         """
         try:
             logger.info("source: %s" % source)
@@ -330,7 +354,8 @@ class NcclientKeywords(object):
 
     def close_session(self):
         """
-        Request graceful termination of the NETCONF session, and also close the transport.
+        Request graceful termination of the NETCONF session, and also close the
+        transport.
         """
         try:
             self.mgr.close_session()
