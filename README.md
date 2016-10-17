@@ -6,7 +6,13 @@
 
 NcclientLibrary is a [Robotframework](https://github.com/robotframework/robotframework) NETCONF wrapper libraray of [ncclient](https://github.com/ncclient/ncclient)
 
-``` bash
+## Installation
+
+``` Shell
+virtualenv venv
+source venv/bin/activate
+pip install --upgrade pip
+pip install --upgrade setuptools
 pip install robotframework-ncclient
 ```
 

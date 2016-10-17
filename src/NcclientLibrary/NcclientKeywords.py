@@ -91,6 +91,14 @@ class NcclientKeywords(object):
             logger.error(str(e))
             raise str(e)
 
+    def get_server_capabilities(self):
+        """ Returns server caps """
+        return self.server_capabilities
+
+    def get_yang_modules(self):
+        """ Returns server supported YANG modules """
+        return self.yang_modules
+
     def _parse_server_capabilities(self, server_capabilities):
         """
         Returns server_capabilities and supported YANG modules in JSON format
