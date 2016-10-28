@@ -162,3 +162,9 @@ $RECYCLE.BIN/
 .idea/misc.xml
 .idea/modules.xml
 .idea/robotframework-ncclient.iml
+
+# Robotframework
+log.html
+report.html
+output.xml
+results/*
