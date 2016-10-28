@@ -144,7 +144,7 @@ class NcclientKeywords(object):
 
         ``filter_type`` xml string or subtree value
 
-        ``filter_criteria`` tuple values (xpath and xml)
+        ``filter_criteria`` tuple values (xml and xpath)
 
         **Filter parameters**
 
