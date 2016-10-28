@@ -34,7 +34,7 @@ Test Login
     Connect    &{config}
 ```
 
-Update docs 
+## Update docs 
 
 ``` bash
 python -m robot.libdoc src/NcclientLibrary/NcclientKeywords.py docs/index.html
