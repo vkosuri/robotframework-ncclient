@@ -3,6 +3,7 @@
 from ncclient import manager
 from robot.api import logger
 import re
+import robot
 
 _standard_capabilities = {
     # The server supports the <candidate/> database
@@ -35,9 +36,11 @@ class NcclientException(Exception):
 
 
 class NcclientKeywords(object):
+    ROBOT_LIBRARY_SCOPE = 'Global'
+
     def __init__(self):
-        # manager object
-        self.mgr = None
+        self._cache = robot.utils.ConnectionCache('No sessions created')
+
         # Specify whether operations are executed asynchronously (True) or 
         # synchronously (False) (the default).
         self.async_mode = None
@@ -63,7 +66,8 @@ class NcclientKeywords(object):
         """
         try:
             logger.info('Creating session %s, %s' % (args, kwds))
-            self.mgr = manager.connect(
+            alias = kwds.get('alias')
+            session = manager.connect(
                 host=kwds.get('host'),
                 port=int(kwds.get('port') or 830),
                 username=str(kwds.get('username')),
@@ -71,11 +75,12 @@ class NcclientKeywords(object):
                 hostkey_verify=False,
                 key_filename=str(kwds.get('key_filename')),
             )
-            all_server_capabilities = self.mgr.server_capabilities
-            self.client_capabilities = self.mgr.client_capabilities
-            self.session_id = self.mgr.session_id
-            self.connected = self.mgr.connected
-            self.timeout = self.mgr.timeout
+            self._cache.register(session, alias=alias)
+            all_server_capabilities = session.server_capabilities
+            self.client_capabilities = session.client_capabilities
+            self.session_id = session.session_id
+            self.connected = session.connected
+            self.timeout = session.timeout
             # Store YANG Modules and Capabilities
             self.yang_modules, server_capabilities = \
                     self._parse_server_capabilities(all_server_capabilities)
@@ -136,9 +141,12 @@ class NcclientKeywords(object):
             logger.error(str(e))
             raise str(e)
 
-    def get_config(self, source, filter_type='subtree', filter_criteria=None):
+    def get_config(self, alias, source, filter_type='subtree',
+                    filter_criteria=None):
         """
         Retrieve all or part of a specified configuration.
+
+        ``alias`` that will be used to identify the Session object in the cache
 
         ``source`` name of the configuration datastore being queried
 
@@ -161,22 +169,26 @@ class NcclientKeywords(object):
 
         A <filter> element as an XML string or an Element object.
         """
-        gc_filter = filter_type
+        session = self._cache.switch(alias)
+        gc_filter = None
         try:
             if filter_criteria:
                 gc_filter = (filter_type, filter_criteria)
 
-            logger.info("source: %s, filter: %s:" % (source, gc_filter))
-            return self.mgr.get_config(source, gc_filter).data
+            logger.info("alias: %s, source: %s, filter: %s:" % (alias, source,
+                                                                gc_filter))
+            return session.get_config(source, gc_filter).data
         except NcclientException as e:
             logger.error(str(e))
             raise str(e)
 
-    def edit_config(self, target, config, default_operation=None,
+    def edit_config(self, alias, target, config, default_operation=None,
                                     test_option=None, error_option=None):
         """
         Loads all or part of the specified config to the target
          configuration datastore.
+
+        ``alias`` that will be used to identify the Session object in the cache
 
         ``target`` is the name of the configuration datastore being edited
 
@@ -195,20 +207,24 @@ class NcclientKeywords(object):
         adaptability.
 
         """
+        session = self._cache.switch(alias)
+
         try:
             logger.info("target: %s, config: %s, default_operation: %s \
                test_option: %s,  error_option: %s" 
                % (target, config, default_operation, test_option, error_option))
-            self.mgr.edit_config(target, config, default_operation, 
+            session.edit_config(target, config, default_operation, 
                                     test_option, error_option)
         except NcclientException as e:
             logger.error(str(e))
             raise str(e)
 
-    def copy_config(self, source, target):
+    def copy_config(self, alias, source, target):
         """
         Create or replace an entire configuration datastore with the contents
         of another complete configuration datastore.
+
+        ``alias`` that will be used to identify the Session object in the cache
 
         ``source`` is the name of the configuration datastore to use as the
         source of the copy operation or config element containing the
@@ -217,29 +233,36 @@ class NcclientKeywords(object):
         ``target`` is the name of the configuration datastore to use as the
         destination of the copy operation
         """
+        session = self._cache.switch(alias)
         try:
-            logger.info("source: %s, target: %s" % (source, target))
-            self.mgr.copy_config(source, target)
+            logger.info("alias: %s, source: %s, target: %s" % (alias, source,
+                                                                target))
+            session.copy_config(source, target)
         except NcclientException as e:
             logger.error(str(e))
             raise str(e)
 
-    def delete_config(self, target):
+    def delete_config(self, alias, target):
         """
         Delete a configuration datastore.
+
+        ``alias`` that will be used to identify the Session object in the cache
 
         ``target`` specifies the name or URL of configuration datastore to
         delete.
         """
+        session = self._cache.switch(alias)
         try:
-            logger.info("target: %s" % target)
-            self.mgr.delete_config(target)
+            logger.info("alias: %s, target: %s" % (alias, target))
+            session.delete_config(target)
         except NcclientException as e:
             logger.error(str(e))
             raise str(e)
 
-    def dispatch(self, rpc_command, source=None, filter=None):
+    def dispatch(self, alias, rpc_command, source=None, filter=None):
         """
+        ``alias`` that will be used to identify the Session object in the cache
+
         ``rpc_command`` specifies rpc command to be dispatched either in plain
         text or in xml element format (depending on command)
 
@@ -248,56 +271,70 @@ class NcclientKeywords(object):
         ``filter`` specifies the portion of the configuration to retrieve
         (by default entire configuration is retrieved)
         """
+        session = self._cache.switch(alias)
         try:
-            logger.info("rpc_command: %s, source: %s, filter: %s" 
-                                    % (rpc_command, source, filter))
-            self.mgr.dispatch(rpc_command, source, filter)
+            logger.info("alias: %s, rpc_command: %s, source: %s, filter: %s" 
+                                    % (alias, rpc_command, source, filter))
+            session.dispatch(rpc_command, source, filter)
         except NcclientException as e:
             logger.error(str(e))
             raise str(e)
 
-    def lock(self, target):
+    def lock(self, alias, target):
         """
         Allows the client to lock the configuration system of a device.
 
+        ``alias`` that will be used to identify the Session object in the cache
+
         ``target`` is the name of the configuration datastore to lock
         """
+        session = self._cache.switch(alias)
         try:
-            logger.info("target: %s" % target)
-            self.mgr.lock(target)
+            logger.info("alias: %s, target: %s" % (alias, target))
+            session.lock(target)
         except NcclientException as e:
             logger.error(str(e))
             raise str(e)
 
-    def unlock(self, target):
+    def unlock(self, alias, target):
         """
         Release a configuration lock, previously obtained with the lock
         operation.
 
+        ``alias`` that will be used to identify the Session object in the cache
+
         ``target`` is the name of the configuration datastore to unlock
         """
+        session = self._cache.switch(alias)
         try:
-            logger.info("target: %s" % target)
-            self.mgr.unlock(target)
+            logger.info("alias: %s, target: %s" % (alias, target))
+            session.unlock(target)
         except NcclientException as e:
             logger.error(str(e))
             raise str(e)
 
-    def locked(self, target):
+    def locked(self, alias, target):
         """
         Returns a context manager for a lock on a datastore, where target
         is the name of the configuration datastore to lock.
+
+        ``alias`` that will be used to identify the Session object in the cache
+
+        ``target`` is the name of the configuration datastore to unlock
         """
+        session = self._cache.switch(alias)
         try:
-            logger.info("target: %s" % target)
-            self.mgr.locked(target)
+            logger.info("alias: %s, target: %s" %(alias, target))
+            session.locked(target)
         except NcclientException as e:
             logger.error(str(e))
             raise str(e)
 
-    def get(self, filter_type='subtree', filter_criteria=None):
+    def get(self, alias, filter_type='subtree', filter_criteria=None):
         """
         Retrieve running configuration and device state information.
+
+        ``alias`` that will be used to identify the Session object in the cache
 
         ``filter_typoe`` specifies the portion of the configuration to retrieve (by
         default entire configuration is retrieved)
@@ -319,42 +356,48 @@ class NcclientKeywords(object):
 
         A <filter> element as an XML string or an Element object.
         """
-        get_filter = filter_type
+        session = self._cache.switch(alias)
+        get_filter = None
         try:
-            if criteria:
+            if filter_criteria:
                 get_filter = (filter_type, filter_criteria)
-
-            return self.mgr.get(get_filter).data
+            return session.get(get_filter).data
         except NcclientException as e:
             logger.error(str(e))
             raise str(e)
 
-    def close_session(self):
+    def close_session(self, alias):
         """
         Request graceful termination of the NETCONF session, and also close the
         transport.
+
+        ``alias`` that will be used to identify the Session object in the cache
         """
+        session = self._cache.switch(alias)
         try:
-            self.mgr.close_session()
+            session.close_session()
         except NcclientException as e:
             logger.error(str(e))
             raise str(e)
 
-    def kill_session(self, session_id):
+    def kill_session(self, alias, session_id):
         """
         Force the termination of a NETCONF session (not the current one!)
+
+        ``alias`` that will be used to identify the Session object in the cache
 
         ``session_id`` is the session identifier of the NETCONF session to be
         terminated as a string
         """
+        session = self._cache.switch(alias)
         try:
-            logger.info("session_id: %s" % session_id)
-            self.mgr.kill_session(session_id)
+            logger.info("alias: %s, session_id: %s" %(alias, session_id))
+            session.kill_session(session_id)
         except NcclientException as e:
             logger.error(str(e))
             raise str(e)
 
-    def commit(self, confirmed=False, timeout=None):
+    def commit(self, alias, confirmed=False, timeout=None):
         """
         Commit the candidate configuration as the device?s new current
         configuration. Depends on the :candidate capability.
@@ -365,49 +408,63 @@ class NcclientKeywords(object):
         confirming commit may have the confirmed parameter but this is not
         required. Depends on the :confirmed-commit capability.
 
+        ``alias`` that will be used to identify the Session object in the cache
+
         ``confirmed`` whether this is a confirmed commit
 
         ``timeout`` specifies the confirm timeout in seconds
         """
+        session = self._cache.switch(alias)
         try:
-            logger.info("confirmed: %s, timeout:%s" % (confirmed, timeout))
-            self.mgr.commit(confirmed, timeout)
+            logger.info("alias: %s, confirmed: %s, timeout:%s" % (alias,
+                                                            confirmed, timeout))
+            session.commit(confirmed, timeout)
         except NcclientException as e:
             logger.error(str(e))
             raise str(e)
 
-    def discard_changes(self):
+    def discard_changes(self, alias):
         """
         Revert the candidate configuration to the currently running
         configuration. Any uncommitted changes are discarded.
+
+        ``alias`` that will be used to identify the Session object in the cache
+
         """
+        session = self._cache.switch(alias)
         try:
-            self.mgr.discard_changes()
+            session.discard_changes()
         except NcclientException as e:
             logger.error(str(e))
             raise str(e)
 
-    def validate(self, source):
+    def validate(self, alias, source):
         """
         Validate the contents of the specified configuration.
+
+        ``alias`` that will be used to identify the Session object in the cache
 
         ``source`` is the name of the configuration datastore being validated or
         config element containing the configuration subtree to be validated
         """
+        session = self._cache.switch(alias)
         try:
-            logger.info("source: %s" % source)
-            self.mgr.validate(source)
+            logger.info("alias: %s, source: %s" % (alias, source))
+            session.validate(source)
         except NcclientException as e:
             logger.error(str(e))
             raise str(e)
 
-    def close_session(self):
+    def close_session(self, alias):
         """
         Request graceful termination of the NETCONF session, and also close the
         transport.
+
+        ``alias`` that will be used to identify the Session object in the cache
         """
+        session = self._cache.switch(alias)
         try:
-            self.mgr.close_session()
+            session.close_session()
         except NcclientException as e:
             logger.error(str(e))
             raise str(e)
