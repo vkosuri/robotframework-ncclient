@@ -136,7 +136,7 @@ class NcclientKeywords(object):
             logger.error(str(e))
             raise str(e)
 
-    def get_config(self, source, filter=None):
+    def get_config(self, source, type='subtree', criteria=None):
         """
         Retrieve all or part of a specified configuration.
 
@@ -144,10 +144,28 @@ class NcclientKeywords(object):
 
         ``filter`` specifies the portion of the configuration to retrieve
         (by default entire configuration is retrieved)
+        
+        Filter parameters
+        =================
+
+        Where a method takes a filter argument, it can take on the following types:
+
+        A tuple of (type, criteria).
+
+            Here type has to be one of “xpath” or “subtree”.
+            For “xpath” the criteria should be a string containing the XPath
+            expression.
+            For “subtree” the criteria should be an XML string or an Element
+            object containing the criteria.
+
+        A <filter> element as an XML string or an Element object.
         """
+        filter = type
         try:
+            if criteria:
+                filter = (type, criteria)
             logger.info("source: %s, filter: %s:" % (source, filter))
-            self.mgr.get_config(source, filter)
+            return self.mgr.get_config(source, filter).data
         except NcclientException as e:
             logger.error(str(e))
             raise str(e)
@@ -275,15 +293,33 @@ class NcclientKeywords(object):
             logger.error(str(e))
             raise str(e)
 
-    def get(self):
+    def get(self, type='subtree', criteria=None):
         """
         Retrieve running configuration and device state information.
 
         filter specifies the portion of the configuration to retrieve (by
         default entire configuration is retrieved)
+        
+        Filter parameters
+        =================
+
+        Where a method takes a filter argument, it can take on the following types:
+
+        A tuple of (type, criteria).
+
+            Here type has to be one of “xpath” or “subtree”.
+            For “xpath” the criteria should be a string containing the XPath
+            expression.
+            For “subtree” the criteria should be an XML string or an Element
+            object containing the criteria.
+
+        A <filter> element as an XML string or an Element object.
         """
+        filter = type
         try:
-            self.mgr.get()
+             if criteria:
+                filter = (type, criteria)
+            return self.mgr.get(filter).data
         except NcclientException as e:
             logger.error(str(e))
             raise str(e)
