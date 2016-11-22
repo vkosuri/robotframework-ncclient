@@ -183,7 +183,7 @@ class NcclientKeywords(object):
             raise str(e)
 
     def edit_config(self, alias, target, config, default_operation=None,
-                                    test_option=None, error_option=None):
+                    test_option=None, error_option=None, format='xml'):
         """
         Loads all or part of the specified config to the target
          configuration datastore.
@@ -203,6 +203,8 @@ class NcclientKeywords(object):
         ``error_option`` if specified must be one of
         { ?stop-on-error?, ?continue-on-error?, ?rollback-on-error? }
 
+	``format`` if specified must be one of { ?xml?, ?text?}
+
         The ?rollback-on-error? error_option depends on the :rollback-on-error
         adaptability.
 
@@ -213,8 +215,9 @@ class NcclientKeywords(object):
             logger.info("target: %s, config: %s, default_operation: %s \
                test_option: %s,  error_option: %s" 
                % (target, config, default_operation, test_option, error_option))
-            session.edit_config(target, config, default_operation, 
-                                    test_option, error_option)
+            session.edit_config(config, format, target, default_operation,
+				     test_option, error_option)
+
         except NcclientException as e:
             logger.error(str(e))
             raise str(e)
