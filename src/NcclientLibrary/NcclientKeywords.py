@@ -349,7 +349,7 @@ class NcclientKeywords(object):
         Where a method takes a filter argument, it can take on the following
         types:
 
-        A tuple of (type, criteria).
+        A tuple of (filter_type, filter_criteria).
 
             Here type has to be one of ``xpath`` or ``subtree``.
             For ``xpath`` the criteria should be a string containing the XPath
