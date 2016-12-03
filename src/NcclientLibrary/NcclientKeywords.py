@@ -150,7 +150,7 @@ class NcclientKeywords(object):
 
         ``source`` name of the configuration datastore being queried
 
-        ``filter_type`` xml string or subtree value
+        ``filter_type`` if specified must be one of ``xpath`` or ``subtree``
 
         ``filter_criteria`` tuple values (xml and xpath)
 
@@ -159,7 +159,7 @@ class NcclientKeywords(object):
         Where a method takes a filter argument, it can take on the following
         type:
 
-        A tuple of (type, criteria).
+        A tuple of (filter_type, filter_criteria).
 
             Here type has to be one of ``xpath`` or ``subtree``.
             For ``xpath`` the criteria should be a string containing the XPath
