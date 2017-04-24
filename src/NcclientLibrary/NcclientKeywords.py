@@ -63,7 +63,21 @@ class NcclientKeywords(object):
     def connect(self, *args, **kwds):
         """
         Initialize a Manager over the SSH transport.
+
+         ``host`` the host to connect to
+
+         ``port`` the SSH port
+
+         ``username`` the username to use for SSH authentication
+
+         ``password`` the password to be used for password authentication
+
+          ``look_for_keys`` set to ``false`` to avoid searching for ssh keys
+
+          ``key_filename`` a filename where a private key can be found
+
         """
+
         try:
             logger.info('Creating session %s, %s' % (args, kwds))
             alias = kwds.get('alias')
@@ -73,6 +87,7 @@ class NcclientKeywords(object):
                 username=str(kwds.get('username')),
                 password=str(kwds.get('password')),
                 hostkey_verify=False,
+                look_for_keys= False if str(kwds.get('look_for_keys')).lower() == 'false' else True,
                 key_filename=str(kwds.get('key_filename')),
             )
             self._cache.register(session, alias=alias)
