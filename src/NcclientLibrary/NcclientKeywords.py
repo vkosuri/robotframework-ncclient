@@ -187,7 +187,7 @@ class NcclientKeywords(object):
         session = self._cache.switch(alias)
         gc_filter = None
         try:
-            if filter_criteria:
+            if filter_criteria is not None:
                 gc_filter = (filter_type, filter_criteria)
 
             logger.info("alias: %s, source: %s, filter: %s:" % (alias, source,
@@ -377,7 +377,7 @@ class NcclientKeywords(object):
         session = self._cache.switch(alias)
         get_filter = None
         try:
-            if filter_criteria:
+            if filter_criteria is not None:
                 get_filter = (filter_type, filter_criteria)
             return session.get(get_filter).data
         except NcclientException as e:
