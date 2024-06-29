@@ -1,3 +1,4 @@
+## Please consider cloning this project from here for your own use. https://github.com/scott-carrion/robotframework-ncclient2
 
 [![PyPi downloads](https://img.shields.io/pypi/dm/robotframework-ncclient.svg)](https://pypi.python.org/pypi/robotframework-ncclient)
 [![Latest Version](https://img.shields.io/pypi/v/robotframework-ncclient.svg)](https://pypi.python.org/pypi/robotframework-ncclient)
